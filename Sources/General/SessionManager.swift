@@ -83,7 +83,7 @@ public class SessionManager {
         var status: Status = .waiting
         var tasks: [DownloadTask] = []
         var taskMapper: [String: DownloadTask] = [String: DownloadTask]()
-        var urlMapper: [URL: URL] = [URL: URL]()
+        var urlMapper: [String: URL] = [String: URL]()
         var runningTasks: [DownloadTask] = []
         var restartTasks: [DownloadTask] = []
         var succeededTasks: [DownloadTask] = []
@@ -239,7 +239,7 @@ public class SessionManager {
             state.tasks.forEach {
                 $0.manager = self
                 $0.operationQueue = operationQueue
-                state.urlMapper[$0.currentURL] = $0.url
+                state.urlMapper[$0.currentURL.cacheKey] = $0.url
             }
             state.shouldCreatSession = true
         }
@@ -413,7 +413,7 @@ extension SessionManager {
     public func fetchTask(_ url: URLConvertible) -> DownloadTask? {
         do {
             let validURL = try url.asURL()
-            return protectedState.read { $0.taskMapper[validURL.absoluteString] }
+            return protectedState.read { $0.taskMapper[validURL.cacheKey] }
         } catch {
             log(.error("fetch task failed", error: TiercelError.invalidURL(url: url)))
             return nil
@@ -422,8 +422,8 @@ extension SessionManager {
     
     internal func mapTask(_ currentURL: URL) -> DownloadTask? {
         protectedState.read {
-            let url = $0.urlMapper[currentURL] ?? currentURL
-            return $0.taskMapper[url.absoluteString]
+            let url = $0.urlMapper[currentURL.cacheKey] ?? currentURL
+            return $0.taskMapper[url.cacheKey]
         }
     }
 
@@ -627,33 +627,33 @@ extension SessionManager {
         case let .append(task):
             protectedState.write { state in
                 state.tasks.append(task)
-                state.taskMapper[task.url.absoluteString] = task
-                state.urlMapper[task.currentURL] = task.url
+                state.taskMapper[task.url.cacheKey] = task
+                state.urlMapper[task.currentURL.cacheKey] = task.url
             }
         case let .remove(task):
             protectedState.write { state in
                 if state.status == .willRemove {
-                    state.taskMapper.removeValue(forKey: task.url.absoluteString)
-                    state.urlMapper.removeValue(forKey: task.currentURL)
+                    state.taskMapper.removeValue(forKey: task.url.cacheKey)
+                    state.urlMapper.removeValue(forKey: task.currentURL.cacheKey)
                     if state.taskMapper.values.isEmpty {
                         state.tasks.removeAll()
                         state.succeededTasks.removeAll()
                     }
                 } else if state.status == .willCancel {
-                    state.taskMapper.removeValue(forKey: task.url.absoluteString)
-                    state.urlMapper.removeValue(forKey: task.currentURL)
+                    state.taskMapper.removeValue(forKey: task.url.cacheKey)
+                    state.urlMapper.removeValue(forKey: task.currentURL.cacheKey)
                     if state.taskMapper.values.count == state.succeededTasks.count {
                         state.tasks = state.succeededTasks
                     }
                 } else {
-                    state.taskMapper.removeValue(forKey: task.url.absoluteString)
-                    state.urlMapper.removeValue(forKey: task.currentURL)
+                    state.taskMapper.removeValue(forKey: task.url.cacheKey)
+                    state.urlMapper.removeValue(forKey: task.currentURL.cacheKey)
                     state.tasks.removeAll {
-                        $0.url.absoluteString == task.url.absoluteString
+                        $0.url.cacheKey == task.url.cacheKey
                     }
                     if task.status == .removed {
                         state.succeededTasks.removeAll {
-                            $0.url.absoluteString == task.url.absoluteString
+                            $0.url.cacheKey == task.url.cacheKey
                         }
                     }
                 }
@@ -667,14 +667,14 @@ extension SessionManager {
         case let .removeRunningTasks(task):
             protectedState.write { state in
                 state.runningTasks.removeAll {
-                    $0.url.absoluteString == task.url.absoluteString
+                    $0.url.cacheKey == task.url.cacheKey
                 }
             }
         }
     }
 
     internal func updateUrlMapper(with task: DownloadTask) {
-        protectedState.write { $0.urlMapper[task.currentURL] = task.url }
+        protectedState.write { $0.urlMapper[task.currentURL.cacheKey] = task.url }
         storeTasks()
     }
     

@@ -211,8 +211,9 @@ extension DownloadTask {
                 self.didComplete(.local)
             }
         } else {
-            if let resumeData = resumeData,
+            if var resumeData = resumeData,
                 cache.retrieveTmpFile(tmpFileName) {
+                resumeData = ResumeDataHelper.correct(with: resumeData, url: url)
                 sessionTask = session?.downloadTask(withResumeData: resumeData)
             } else {
                 var request = URLRequest(url: url, cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: 0)

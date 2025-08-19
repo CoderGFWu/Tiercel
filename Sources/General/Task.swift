@@ -69,7 +69,7 @@ public class Task<TaskType>: NSObject, Codable {
 
     internal var operationQueue: DispatchQueue
 
-    public let url: URL
+    public var url: URL
     
     public let progress: Progress = Progress()
 

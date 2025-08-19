@@ -94,7 +94,7 @@ internal enum ResumeDataHelper {
     ///
     /// - Parameter data:
     /// - Returns:
-    private static func correct(with data: Data) -> Data? {
+    static func correct(with data: Data) -> Data? {
         if NSKeyedUnarchiver.unarchiveObject(with: data) != nil {
             return data
         }
@@ -136,6 +136,27 @@ internal enum ResumeDataHelper {
         return try? PropertyListSerialization.data(fromPropertyList: resumeDictionary,
                                                    format: PropertyListSerialization.PropertyListFormat.binary,
                                                    options: PropertyListSerialization.WriteOptions())
+    }
+    
+    
+    static func correct(with data: Data, url: URL) -> Data {
+        let resumeDataDict = getResumeDictionary(data)
+        if let currentReqData = resumeDataDict?[ResumeDataHelper.currentRequestKey] as? Data, let currentReqDict = try? PropertyListSerialization.propertyList(from: currentReqData, options: .mutableContainersAndLeaves, format: nil) as? NSMutableDictionary, var objects = currentReqDict["$objects"] as? [Any], let index = objects.firstIndex(where: { ($0 as? String)?.hasPrefix("http") ?? false }), let old = objects[index] as? String {
+            if old != url.absoluteString {
+                objects[index] = url.absoluteString
+                currentReqDict["$objects"] = objects
+                let currentReqData = try? PropertyListSerialization.data(fromPropertyList: currentReqDict,
+                                                                     format: PropertyListSerialization.PropertyListFormat.binary,
+                                                                     options: PropertyListSerialization.WriteOptions())
+                resumeDataDict?[ResumeDataHelper.currentRequestKey] = currentReqData
+                
+                let keyedArchiver = NSKeyedArchiver(requiringSecureCoding: false)
+                keyedArchiver.encode(resumeDataDict, forKey: ResumeDataHelper.archiveRootObjectKey)
+                let newResumeData = keyedArchiver.encodedData
+                return newResumeData
+            }
+        }
+        return data
     }
 
 }

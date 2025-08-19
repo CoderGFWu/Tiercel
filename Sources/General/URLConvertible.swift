@@ -53,3 +53,9 @@ extension URLComponents: URLConvertible {
         return url
     }
 }
+
+extension URL {
+    public var cacheKey: String {
+        return "\(absoluteString.split(separator: "?").first ?? "\(absoluteString)")"
+    }
+}
